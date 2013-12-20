@@ -145,6 +145,7 @@ label {
 							progress.parentNode.removeChild(progress);
 							strong.parentNode.removeChild(strong);
 							hr.parentNode.removeChild(hr);
+							document.getElementById('audio-url-preview').innerHTML = '<a href="http://localhost:8080/audio-recorder/uploads/' + fileName + '" target="_blank">Recorded Audio URL</a>';
 						});
 			}
 
@@ -191,10 +192,7 @@ label {
 
 					fileName = Math.round(Math.random() * 99999999) + 99999999;
 					console.log('filename: ' + fileName);
-					recorder
-							.stopRecording(function(url) {
-								document.getElementById('audio-url-preview').innerHTML = '<a href="' + url + '" target="_blank">Recorded Audio URL</a>';
-							});
+					recorder.stopRecording();
 					PostBlob(recorder.getBlob(), 'audio', fileName + '.wav');
 
 				}
