@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>RecordRTC: WebRTC audio/video recording ® Muaz Khan</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta charset="utf-8" />
+<meta name="viewport"
+	content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+<style>
+audio {
+	vertical-align: bottom;
+	width: 10em;
+}
+
+video {
+	vertical-align: top;
+	max-width: 100%;
+}
+
+input {
+	border: 1px solid #d9d9d9;
+	border-radius: 1px;
+	font-size: 2em;
+	margin: .2em;
+	width: 30%;
+}
+
+p,.inner {
+	padding: 1em;
+}
+
+li {
+	border-bottom: 1px solid rgb(189, 189, 189);
+	border-left: 1px solid rgb(189, 189, 189);
+	padding: .5em;
+}
+
+label {
+	display: inline-block;
+	width: 8em;
+}
+</style>
+
+<!-- script used for audio/video/gif recording -->
+<script src="js/RecordRTC.js">
+	
+</script>
+</head>
+
+<body>
+	<article>
+
+		<section class="experiment">
+			<h2 class="header">Record Audio</h2>
+
+			<div class="inner">
+				<audio id="audio" controls="controls" autoplay="autoplay"
+					loop="loop"></audio>
+				<button id="record-audio">Record</button>
+				<button id="stop-recording-audio" disabled="disabled">Stop</button>
+				<h2 id="audio-url-preview"></h2>
+				<div id="container" style="padding: 1em 2em;"></div>
+			</div>
+		</section>
+
+		<script>
+			function getByID(id) {
+				return document.getElementById(id);
+			}
+
+			var recordAudio = getByID('record-audio'), stopRecordingAudio = getByID('stop-recording-audio');
+			var audio = getByID('audio');
+
+			var audioConstraints = {
+				audio : true,
+				video : false
+			};
+		</script>
+		<script>
+			function xhr(url, data, progress, callback) {
+				var request = new XMLHttpRequest();
+				request.onreadystatechange = function() {
+					if (request.readyState == 4 && request.status == 200) {
+						callback(request.responseText);
+					}
+				};
+
+				request.onprogress = function(e) {
+					if (!progress)
+						return;
+					if (e.lengthComputable) {
+						progress.value = (e.loaded / e.total) * 100;
+						progress.textContent = progress.value; // Fallback for unsupported browsers.
+					}
+
+					if (progress.value == 100) {
+						progress.value = 0;
+					}
+				};
+				request.open('POST', url);
+				request.send(data);
+			}
+
+			function PostBlob(blob, fileType, fileName) {
+				// FormData
+				console.log('filename: ' + fileName);
+				console.log('filtype: ' + fileType);
+				var formData = new FormData();
+				formData.append('filename', blob, fileName);
+
+				// progress-bar
+				var hr = document.createElement('hr');
+				container.appendChild(hr);
+				var strong = document.createElement('strong');
+				strong.innerHTML = fileType + ' upload progress: ';
+				container.appendChild(strong);
+				var progress = document.createElement('progress');
+				container.appendChild(progress);
+
+				// POST the Blob
+				xhr(
+						'http://localhost:8080/audio-recorder/record',
+						formData,
+						progress,
+						function(fileURL) {
+							container.appendChild(document.createElement('hr'));
+							var mediaElement = document.createElement(fileType);
+
+							var source = document.createElement('source');
+							source.src = location.href + fileURL;
+
+							if (fileType == 'video')
+								source.type = 'video/webm; codecs="vp8, vorbis"';
+							if (fileType == 'audio')
+								source.type = 'audio/wav';
+
+							//mediaElement.appendChild(source);
+
+							//mediaElement.controls = true;
+							//container.appendChild(mediaElement);
+							//mediaElement.play();
+
+							progress.parentNode.removeChild(progress);
+							strong.parentNode.removeChild(strong);
+							hr.parentNode.removeChild(hr);
+						});
+			}
+
+			var audioStream;
+			var recorder;
+
+			recordAudio.onclick = function() {
+				if (!audioStream)
+					navigator.getUserMedia(audioConstraints, function(stream) {
+						if (window.IsChrome)
+							stream = new window.MediaStream(stream
+									.getAudioTracks());
+						audioStream = stream;
+
+						audio.src = URL.createObjectURL(audioStream);
+						audio.play();
+
+						// "audio" is a default type
+						recorder = window.RecordRTC(stream, {
+							type : 'audio'
+						});
+						recorder.startRecording();
+					}, function() {
+					});
+				else {
+					audio.src = URL.createObjectURL(audioStream);
+					audio.play();
+					if (recorder)
+						recorder.startRecording();
+				}
+
+				window.isAudio = true;
+
+				this.disabled = true;
+				stopRecordingAudio.disabled = false;
+			};
+			var fileName;
+			stopRecordingAudio.onclick = function() {
+				this.disabled = true;
+				recordAudio.disabled = false;
+				audio.src = '';
+
+				if (recorder) {
+
+					fileName = Math.round(Math.random() * 99999999) + 99999999;
+					console.log('filename: ' + fileName);
+					recorder
+							.stopRecording(function(url) {
+								document.getElementById('audio-url-preview').innerHTML = '<a href="' + url + '" target="_blank">Recorded Audio URL</a>';
+							});
+					PostBlob(recorder.getBlob(), 'audio', fileName + '.wav');
+
+				}
+
+			};
+		</script>
+
+	</article>
+	<footer>
+		<p>
+			<a href="https://www.webrtc-experiment.com/">WebRTC</a>
+		</p>
+	</footer>
+
+</body>
+</html>
